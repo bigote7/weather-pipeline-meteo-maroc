@@ -1,0 +1,510 @@
+% !TEX program = pdflatex
+% Rapport complet — Pipeline Medallion Météo Maroc (Parties 1 à 6)
+% Module : Architecture des Données — 4IASDG2 — EMSI — 2024/2025
+% Compiler : pdflatex rapport_complet_4IASDG2.tex (2 fois)
+
+\documentclass[12pt,a4paper]{report}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage[top=2.5cm,bottom=2.5cm,left=2.5cm,right=2.5cm,headheight=15pt]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, shapes.geometric, fit, backgrounds}
+
+\definecolor{emsiBlue}{RGB}{0,82,155}
+\definecolor{bronzeColor}{RGB}{205,127,50}
+\definecolor{silverColor}{RGB}{160,160,160}
+\definecolor{goldColor}{RGB}{218,165,32}
+\definecolor{codeBg}{RGB}{245,245,245}
+
+\hypersetup{colorlinks=true,linkcolor=emsiBlue,urlcolor=emsiBlue,citecolor=emsiBlue}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small Architecture des Données — 4IASDG2}
+\fancyhead[R]{\small EMSI — 2024/2025}
+\fancyfoot[C]{\thepage}
+
+\lstset{
+    backgroundcolor=\color{codeBg}, frame=single, basicstyle=\ttfamily\small,
+    breaklines=true, numbers=left, numberstyle=\tiny\color{gray},
+    keywordstyle=\color{emsiBlue}\bfseries
+}
+
+\titleformat{\chapter}[display]
+  {\normalfont\huge\bfseries\color{emsiBlue}}
+  {\chaptertitlename\ \thechapter}{20pt}{\Huge}
+
+% ─────────────────────────────────────────────────────────────
+\begin{document}
+
+% ═══ PAGE DE GARDE ═══
+\begin{titlepage}
+\centering
+\vspace*{0.8cm}
+{\Large\textbf{ÉCOLE MAROCAINE DES SCIENCES DE L'INGÉNIEUR}}\\[0.2cm]
+{\large EMSI — Campus Rabat}\\[1.8cm]
+\rule{\linewidth}{1.5pt}\\[0.4cm]
+{\Huge\bfseries\color{emsiBlue} Rapport de Projet}\\[0.3cm]
+{\LARGE\bfseries Pipeline de Données Météorologiques}\\[0.15cm]
+{\LARGE\bfseries Architecture Medallion — Bronze à Power BI}\\[0.4cm]
+\rule{\linewidth}{1.5pt}\\[1.5cm]
+
+\begin{tabular}{rl}
+\textbf{Module :} & Architecture des Données \\[0.4cm]
+\textbf{Filière :} & 4IASD — Groupe 4IASDG2 \\[0.4cm]
+\textbf{Année :} & 2024--2025 \\[0.4cm]
+\textbf{Étudiant(s) :} & \rule{7.5cm}{0.4pt} \\[0.5cm]
+\textbf{Encadrant :} & \rule{7.5cm}{0.4pt} \\[0.5cm]
+\textbf{Date :} & \rule{7.5cm}{0.4pt} \\
+\end{tabular}
+
+\vfill
+{\large\textbf{Flux global :}}\\[0.2cm]
+{\small
+API Weather $\rightarrow$ Airbyte $\rightarrow$ Bronze $\rightarrow$ Silver $\rightarrow$ Gold $\rightarrow$ Airflow $\rightarrow$ Power BI
+}
+\vspace{1cm}
+\end{titlepage}
+
+% ═══ RÉSUMÉ ═══
+\chapter*{Résumé}
+\addcontentsline{toc}{chapter}{Résumé}
+
+Ce rapport documente la conception, l'implémentation et la validation d'un \textbf{pipeline de données complet} pour l'analyse météorologique de \textbf{huit villes marocaines}. Le projet suit l'\textbf{architecture Medallion} en six phases successives : ingestion Bronze via \textbf{Airbyte} et \textbf{MinIO}, transformation Silver en Python, enrichissement Gold avec calcul de KPI, tests de qualité automatisés, orchestration quotidienne par \textbf{Apache Airflow}, et visualisation décisionnelle dans \textbf{Power BI}.
+
+L'infrastructure repose sur \textbf{Docker Desktop}, un stockage objet \textbf{MinIO} compatible S3, et un déploiement local d'Airbyte via \textbf{abctl}. Les résultats incluent un score météo sur 100 points, un classement des villes, un dashboard interactif et un pipeline automatisé exécuté chaque jour à 6h00.
+
+\textbf{Mots-clés :} Data Lake, Medallion, Bronze, Silver, Gold, Airbyte, MinIO, Airflow, Power BI, OpenWeatherMap, KPI, 4IASDG2.
+
+\tableofcontents
+\listoffigures
+\listoftables
+\newpage
+
+% ═══ CHAPITRE 1 — INTRODUCTION ═══
+\chapter{Introduction}
+
+\section{Contexte}
+
+Les systèmes d'information décisionnels modernes s'appuient sur des pipelines de données structurés, capables de collecter, transformer, contrôler et exposer des données fiables. Dans le cadre du module \textbf{Architecture des Données} (4IASDG2), ce projet vise à mettre en œuvre un tel pipeline appliqué aux \textbf{données météorologiques} de villes marocaines.
+
+\section{Problématique}
+
+Comment construire un pipeline de bout en bout — de l'ingestion brute à la visualisation décisionnelle — en respectant les bonnes pratiques d'ingénierie des données (Medallion, qualité, orchestration) ?
+
+\section{Objectifs}
+
+\begin{enumerate}[leftmargin=1.5cm]
+    \item \textbf{Partie 1 — Bronze :} Ingérer des données météo brutes depuis une API Weather vers MinIO.
+    \item \textbf{Partie 2 — Silver :} Nettoyer et structurer les données JSON brutes.
+    \item \textbf{Partie 3 — Gold :} Calculer des KPI métier (score météo, classement).
+    \item \textbf{Partie 4 — Qualité :} Valider automatiquement chaque couche.
+    \item \textbf{Partie 5 — Airflow :} Automatiser le pipeline (cron 6h00).
+    \item \textbf{Partie 6 — Power BI :} Créer un dashboard décisionnel.
+\end{enumerate}
+
+\section{Périmètre}
+
+\begin{table}[H]
+\centering
+\caption{Villes marocaines du pipeline}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Ville} & \textbf{Usage} \\
+\midrule
+Casablanca, Rabat, Marrakech, Fès & Grandes agglomérations \\
+Tanger, Agadir, Meknès, Oujda & Couverture géographique nationale \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ═══ CHAPITRE 2 — ARCHITECTURE ═══
+\chapter{Architecture et environnement technique}
+
+\section{Architecture Medallion}
+
+\begin{center}
+\begin{tikzpicture}[
+    layer/.style={draw, rounded corners, minimum width=2.8cm, minimum height=0.9cm, align=center, font=\small},
+    arr/.style={-{Stealth}, thick}
+]
+    \node[layer, fill=bronzeColor!25] (b) {Bronze\\{\tiny Raw JSON}};
+    \node[layer, fill=silverColor!25, right=0.6cm of b] (s) {Silver\\{\tiny Clean JSON}};
+    \node[layer, fill=goldColor!25, right=0.6cm of s] (g) {Gold\\{\tiny Analytics}};
+    \node[layer, fill=emsiBlue!15, right=0.6cm of g] (bi) {Power BI\\{\tiny Dashboard}};
+    \draw[arr] (b) -- (s); \draw[arr] (s) -- (g); \draw[arr] (g) -- (bi);
+    \node[above=0.8cm of b, font=\small] {Airbyte + MinIO};
+    \node[above=0.8cm of s, font=\small] {Python / Pandas};
+    \node[above=0.8cm of g, font=\small] {Python KPI};
+    \node[above=0.8cm of bi, font=\small] {JSON Export};
+\end{tikzpicture}
+\end{center}
+
+\section{Stack technologique}
+
+\begin{table}[H]
+\centering
+\caption{Composants du pipeline}
+\begin{tabular}{@{}p{3.5cm}p{4cm}p{6cm}@{}}
+\toprule
+\textbf{Rôle} & \textbf{Technologie} & \textbf{Version / Détail} \\
+\midrule
+Conteneurisation & Docker Desktop & 29.x \\
+Ingestion & Airbyte (abctl + kind) & 2.1.0 \\
+Stockage objet & MinIO & Ports 9000 / 9001 \\
+Transformation & Python, Pandas, Boto3 & 3.11+ \\
+Orchestration & Apache Airflow & 2.8.1 \\
+Visualisation & Power BI Desktop & Dernière version \\
+Source API & OpenWeatherMap & Plan gratuit \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Chemins de stockage MinIO}
+
+\begin{table}[H]
+\centering
+\caption{Organisation des données dans MinIO}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Couche} & \textbf{Chemin} \\
+\midrule
+Bronze & \texttt{bronze/weather\_raw/YYYY-MM-DD/<ville>.json} \\
+Silver & \texttt{silver/weather\_clean/YYYY-MM-DD/weather\_clean.json} \\
+Gold   & \texttt{gold/weather\_analytics/YYYY-MM-DD/weather\_analytics.json} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ═══ CHAPITRE 3 — PARTIE 1 BRONZE ═══
+\chapter{Partie 1 — Ingestion Bronze (Airbyte + MinIO)}
+
+\section{Objectif}
+
+Collecter les données météorologiques brutes depuis l'API OpenWeatherMap et les déposer \textbf{sans transformation} dans MinIO.
+
+\section{Mise en œuvre}
+
+\subsection{Déploiement MinIO}
+
+\begin{lstlisting}[language=bash]
+docker run -d --name minio -p 9000:9000 -p 9001:9001
+  -e MINIO_ROOT_USER=minioadmin
+  -e MINIO_ROOT_PASSWORD=minioadmin
+  minio/minio server /data --console-address ":9001"
+\end{lstlisting}
+
+\subsection{Déploiement Airbyte}
+
+\begin{lstlisting}[language=bash]
+abctl.exe local install --low-resource-mode --no-browser
+abctl.exe local credentials
+# Interface : http://localhost:8000
+\end{lstlisting}
+
+\subsection{Configuration Airbyte}
+
+\textbf{Source OpenWeather :} clé API, latitude/longitude par ville, unités métriques.
+
+\textbf{Destination S3/MinIO :}
+\begin{itemize}[leftmargin=1.5cm]
+    \item Endpoint : \url{http://host.docker.internal:9000}
+    \item Bucket : \texttt{bronze}
+    \item Prefix : \texttt{weather\_raw/}
+    \item Credentials : minioadmin / minioadmin
+\end{itemize}
+
+\section{Résultat attendu}
+
+Huit fichiers JSON bruts par jour, un par ville, contenant température, humidité, vent, pression, description météo et horodatages.
+
+% ═══ CHAPITRE 4 — PARTIE 2 SILVER ═══
+\chapter{Partie 2 — Transformation Silver}
+
+\section{Objectif}
+
+Transformer les données brutes en données \textbf{propres, structurées et exploitables}.
+
+\section{Travail réalisé}
+
+Le script \texttt{silver\_transform.py} effectue les opérations suivantes :
+
+\begin{enumerate}[leftmargin=1.5cm]
+    \item Lecture des JSON Bronze depuis MinIO (Boto3) ;
+    \item Extraction des champs : ville, température, humidité, vent, description ;
+    \item Conversion des types (\texttt{float}, \texttt{int}, timestamp ISO) ;
+    \item Suppression des valeurs nulles et incohérentes ;
+    \item Conservation de \texttt{event\_timestamp} et \texttt{ingestion\_timestamp}.
+\end{enumerate}
+
+\section{Schéma Silver}
+
+\begin{table}[H]
+\centering
+\caption{Structure du fichier \texttt{weather\_clean.json}}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Champ} & \textbf{Type} & \textbf{Description} \\
+\midrule
+ville & string & Nom de la ville \\
+temperature & float & Température en °C \\
+humidite & int & Humidité relative (\%) \\
+vent\_vitesse & float & Vitesse du vent (m/s) \\
+event\_timestamp & datetime & Date de l'observation météo \\
+ingestion\_timestamp & datetime & Date d'ingestion dans le pipeline \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Stockage}
+
+Fichier unique agrégé : \texttt{silver/weather\_clean/YYYY-MM-DD/weather\_clean.json} contenant 8 enregistrements (un par ville).
+
+% ═══ CHAPITRE 5 — PARTIE 3 GOLD ═══
+\chapter{Partie 3 — Enrichissement Gold}
+
+\section{Objectif}
+
+Créer des \textbf{données métier} pour la prise de décision : score météo, classement, meilleure ville.
+
+\section{Calcul du score météo (KPI)}
+
+Le score sur 100 points combine trois critères :
+
+\begin{table}[H]
+\centering
+\caption{Grille de notation du score météo}
+\begin{tabular}{@{}p{4cm}p{2cm}p{7cm}@{}}
+\toprule
+\textbf{Critère} & \textbf{Points max} & \textbf{Condition optimale} \\
+\midrule
+Température & 40 & Entre 20 et 28 °C \\
+Humidité    & 30 & Inférieure à 50 \% \\
+Vent        & 30 & Inférieur à 5 m/s \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Classement et meilleure ville}
+
+Les villes sont triées par score décroissant. En cas d'ex-aequo, le classement partagé est appliqué (ex. deux villes à 90/100 = rang 1). La \textbf{meilleure ville du jour} est celle avec le rang minimal.
+
+\section{Exemple de résultats}
+
+\begin{table}[H]
+\centering
+\caption{Classement météo — exemple}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+\textbf{Ville} & \textbf{Temp. (°C)} & \textbf{Humidité (\%)} & \textbf{Score} & \textbf{Rang} \\
+\midrule
+Tanger    & 21.64 & 46 & 90 & 1 \\
+Agadir    & 22.25 & 41 & 90 & 1 \\
+Marrakech & 19.04 & 55 & 75 & 3 \\
+Oujda     & 19.35 & 49 & 65 & 4 \\
+Rabat     & 22.04 & 60 & 65 & 4 \\
+Casablanca& 17.19 & 88 & 60 & 6 \\
+Fès       & 17.14 & 72 & 60 & 6 \\
+Meknès    & 18.49 & 63 & 60 & 6 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Stockage Gold}
+
+\texttt{gold/weather\_analytics/YYYY-MM-DD/weather\_analytics.json} + export local \texttt{powerbi/weather\_analytics.json} pour Power BI.
+
+% ═══ CHAPITRE 6 — PARTIE 4 QUALITÉ ═══
+\chapter{Partie 4 — Qualité des données}
+
+\section{Objectif}
+
+Garantir la \textbf{fiabilité} des données à chaque étape du pipeline.
+
+\section{Tests implémentés}
+
+\begin{table}[H]
+\centering
+\caption{Matrice des tests qualité}
+\begin{tabular}{@{}p{2cm}p{5cm}p{6cm}@{}}
+\toprule
+\textbf{Couche} & \textbf{Test} & \textbf{Critère de succès} \\
+\midrule
+Bronze & Existence fichiers & 8 fichiers JSON présents \\
+Silver & Types et colonnes  & Champs obligatoires, types corrects, humidité 0--100 \\
+Gold   & KPI et classement  & Score $\in$ [0,100], 8 villes, rangs cohérents \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Exécution}
+
+\begin{lstlisting}[language=bash]
+python scripts/data_quality.py --layer bronze
+python scripts/data_quality.py --layer silver
+python scripts/data_quality.py --layer gold
+\end{lstlisting}
+
+En cas d'échec, le script lève une exception et bloque le pipeline (fail-fast).
+
+% ═══ CHAPITRE 7 — PARTIE 5 AIRFLOW ═══
+\chapter{Partie 5 — Orchestration Airflow}
+
+\section{Objectif}
+
+\textbf{Automatiser} l'exécution complète du pipeline sans intervention manuelle.
+
+\section{DAG \texttt{weather\_morocco\_pipeline}}
+
+\begin{center}
+\begin{tikzpicture}[
+    task/.style={draw, rounded corners, fill=emsiBlue!10, minimum width=2.2cm, minimum height=0.7cm, font=\scriptsize, align=center},
+    arr/.style={-{Stealth}, thick}
+]
+    \node[task] (a) {ingestion\\bronze};
+    \node[task, right=0.4cm of a] (b) {test\\bronze};
+    \node[task, right=0.4cm of b] (c) {transform\\silver};
+    \node[task, right=0.4cm of c] (d) {test\\silver};
+    \node[task, right=0.4cm of d] (e) {enrich\\gold};
+    \node[task, right=0.4cm of e] (f) {test\\gold};
+    \draw[arr] (a)--(b)--(c)--(d)--(e)--(f);
+\end{tikzpicture}
+\end{center}
+
+\section{Paramètres du DAG}
+
+\begin{table}[H]
+\centering
+\caption{Configuration Airflow}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Paramètre} & \textbf{Valeur} \\
+\midrule
+DAG ID & \texttt{weather\_morocco\_pipeline} \\
+Schedule & \texttt{0 6 * * *} (quotidien à 6h00) \\
+Executor & SequentialExecutor \\
+Image Docker & \texttt{apache/airflow:2.8.1} \\
+Interface & \url{http://localhost:8080} \\
+Tags & etl, maroc, weather \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ═══ CHAPITRE 8 — PARTIE 6 POWER BI ═══
+\chapter{Partie 6 — Reporting Power BI}
+
+\section{Objectif}
+
+Créer un \textbf{dashboard décisionnel} connecté à la couche Gold.
+
+\section{Connexion aux données}
+
+\begin{enumerate}[leftmargin=1.5cm]
+    \item Power BI Desktop $\rightarrow$ Obtenir des données $\rightarrow$ JSON ;
+    \item Fichier : \texttt{powerbi/weather\_analytics.json} ;
+    \item Charger la table des 8 villes.
+\end{enumerate}
+
+\section{Visuels créés}
+
+\begin{table}[H]
+\centering
+\caption{Dashboard Power BI — 4 visuels}
+\begin{tabular}{@{}p{3.5cm}p{4cm}p{6cm}@{}}
+\toprule
+\textbf{Visuel} & \textbf{Type} & \textbf{Champs} \\
+\midrule
+Température par ville & Graphique barres & ville, temperature \\
+Classement & Table & ville, score\_meteo, classement \\
+Meilleure ville & Carte KPI & ville (rang = 1) \\
+Carte Maroc & Carte géographique & ville, score\_meteo \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ═══ CHAPITRE 9 — DIFFICULTÉS ═══
+\chapter{Difficultés rencontrées}
+
+\begin{enumerate}[leftmargin=1.5cm]
+    \item \textbf{Déploiement Airbyte :} échec initial avec docker-compose ; résolu via abctl.
+    \item \textbf{Espace disque :} installation Helm longue ($>$25 min) ; images volumineuses.
+    \item \textbf{Secret manquant :} \texttt{airbyte-auth-secrets not found} — installation Helm incomplète ; relance de \texttt{local install}.
+    \item \textbf{Endpoint MinIO :} utilisation de \texttt{host.docker.internal:9000} pour Airbyte dans Docker.
+\end{enumerate}
+
+% ═══ CHAPITRE 10 — CONCLUSION ═══
+\chapter{Conclusion}
+
+Ce projet a permis de mettre en place un \textbf{pipeline de données complet} conforme à l'énoncé 4IASDG2 (parties 1 à 6). L'architecture Medallion garantit la séparation des responsabilités entre ingestion, transformation, enrichissement et reporting.
+
+Les apports principaux :
+\begin{itemize}[leftmargin=1.5cm]
+    \item Maîtrise de l'ingestion ELT avec Airbyte et MinIO ;
+    \item Implémentation Python des couches Silver et Gold ;
+    \item Automatisation et contrôle qualité via Airflow ;
+    \item Visualisation décisionnelle dans Power BI.
+\end{itemize}
+
+\textbf{Perspectives :} ajout de prévisions météo, alertes automatiques, migration vers le cloud (AWS S3, Azure Data Lake), et intégration Spark pour le traitement à grande échelle.
+
+% ═══ ANNEXES ═══
+\appendix
+
+\chapter{Structure du projet}
+
+\begin{lstlisting}
+weather_project/
+  config/          # settings.py, minio_client.py
+  scripts/         # bronze, silver, gold, data_quality
+  dags/            # weather_morocco_pipeline.py
+  powerbi/         # weather_analytics.json, dashboard.pbix
+  docker-compose.yml
+  requirements.txt
+\end{lstlisting}
+
+\chapter{Commandes de relance}
+
+\begin{lstlisting}[language=bash]
+docker start minio
+abctl.exe local install --low-resource-mode --no-browser
+python scripts/run_pipeline.py
+docker compose up -d   # Airflow
+# Power BI : actualiser le fichier JSON
+\end{lstlisting}
+
+\chapter{Liens utiles}
+
+\begin{tabular}{@{}p{4cm}p{10cm}@{}}
+Docker & \url{https://www.docker.com/products/docker-desktop/} \\
+Airbyte & \url{https://docs.airbyte.com} \\
+MinIO & \url{https://min.io/docs/minio/container/index.html} \\
+OpenWeather & \url{https://openweathermap.org/api} \\
+Airflow & \url{https://airflow.apache.org/docs/} \\
+Power BI & \url{https://powerbi.microsoft.com} \\
+\end{tabular}
+
+\begin{thebibliography}{9}
+\addcontentsline{toc}{chapter}{Bibliographie}
+\bibitem{medallion} Databricks, \textit{Medallion Architecture}, 2023.
+\bibitem{airbyte} Airbyte Inc., \textit{Documentation OSS}, 2024.
+\bibitem{minio} MinIO Inc., \textit{Object Storage Docs}, 2024.
+\bibitem{airflow} Apache Software Foundation, \textit{Airflow Documentation}, 2024.
+\end{thebibliography}
+
+\end{document}

@@ -1,0 +1,90 @@
+[
+  {
+    "ville": "Oujda",
+    "pays": "MA",
+    "temperature": 23.35,
+    "humidite": 33,
+    "vent_vitesse": 1.54,
+    "description": "clear sky",
+    "score_meteo": 100.0,
+    "date": "2026-05-19",
+    "classement": 1
+  },
+  {
+    "ville": "Fes",
+    "pays": "MA",
+    "temperature": 21.14,
+    "humidite": 64,
+    "vent_vitesse": 1.54,
+    "description": "clear sky",
+    "score_meteo": 90.0,
+    "date": "2026-05-19",
+    "classement": 2
+  },
+  {
+    "ville": "Marrakech",
+    "pays": "MA",
+    "temperature": 21.04,
+    "humidite": 56,
+    "vent_vitesse": 1.54,
+    "description": "clear sky",
+    "score_meteo": 90.0,
+    "date": "2026-05-19",
+    "classement": 2
+  },
+  {
+    "ville": "Meknes",
+    "pays": "MA",
+    "temperature": 21.49,
+    "humidite": 64,
+    "vent_vitesse": 3.6,
+    "description": "clear sky",
+    "score_meteo": 90.0,
+    "date": "2026-05-19",
+    "classement": 2
+  },
+  {
+    "ville": "Rabat",
+    "pays": "MA",
+    "temperature": 20.04,
+    "humidite": 64,
+    "vent_vitesse": 1.54,
+    "description": "overcast clouds",
+    "score_meteo": 90.0,
+    "date": "2026-05-19",
+    "classement": 2
+  },
+  {
+    "ville": "Agadir",
+    "pays": "MA",
+    "temperature": 20.25,
+    "humidite": 67,
+    "vent_vitesse": 2.02,
+    "description": "clear sky",
+    "score_meteo": 80.0,
+    "date": "2026-05-19",
+    "classement": 6
+  },
+  {
+    "ville": "Tanger",
+    "pays": "MA",
+    "temperature": 19.64,
+    "humidite": 60,
+    "vent_vitesse": 2.57,
+    "description": "clear sky",
+    "score_meteo": 75.0,
+    "date": "2026-05-19",
+    "classement": 7
+  },
+  {
+    "ville": "Casablanca",
+    "pays": "MA",
+    "temperature": 19.07,
+    "humidite": 68,
+    "vent_vitesse": 3.09,
+    "description": "overcast clouds",
+    "score_meteo": 65.0,
+    "date": "2026-05-19",
+    "classement": 8
+  }
+]
