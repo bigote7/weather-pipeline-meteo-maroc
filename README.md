@@ -1,6 +1,6 @@
 # Pipeline météo Maroc — 4IASDG2
 
-**Module :** Architecture des données — **EMSI** — 2024/2025  
+**Module :** Architecture des données — **EMSI** — 2025/2026  
 **Architecture :** Medallion (Bronze → Silver → Gold) + Airflow + Power BI  
 **Villes :** Casablanca, Rabat, Marrakech, Fès, Tanger, Agadir, Meknès, Oujda
 
@@ -119,6 +119,6 @@ Voir `docs/POWER_BI.md`
 
 ---
 
-## Étudiants
 
-Adnane Belbsir — Zine Saad — **4IASDG2** — EMSI
+
+  Labib Layachi — **4IASDG1** — EMSI
